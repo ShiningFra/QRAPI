@@ -1,0 +1,12 @@
+com\example\QRAPI\service\ScanService.class
+com\example\QRAPI\controller\QRCodeController.class
+com\example\QRAPI\model\QRCode.class
+com\example\QRAPI\repository\CourseRepository.class
+com\example\QRAPI\repository\QRCodeRepository.class
+com\example\QRAPI\repository\ClientRepository.class
+com\example\QRAPI\repository\ChauffeurRepository.class
+com\example\QRAPI\model\Course.class
+com\example\QRAPI\QrapiApplication.class
+com\example\QRAPI\model\Client.class
+com\example\QRAPI\model\Chauffeur.class
+com\example\QRAPI\service\QRCodeService.class

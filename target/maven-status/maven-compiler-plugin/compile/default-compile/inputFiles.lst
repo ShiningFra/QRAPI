@@ -1,0 +1,12 @@
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\controller\QRCodeController.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\model\Chauffeur.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\model\Client.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\model\Course.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\model\QRCode.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\QrapiApplication.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\repository\ChauffeurRepository.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\repository\ClientRepository.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\repository\CourseRepository.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\repository\QRCodeRepository.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\service\QRCodeService.java
+D:\Workspace\QRAPI\src\main\java\com\example\QRAPI\service\ScanService.java
