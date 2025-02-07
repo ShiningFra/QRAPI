@@ -1,0 +1,5 @@
+# Created at 2025-02-07T17:26:27.215
+Boot Manifest-JAR contains absolute paths in classpath 'D:\Workspace\QRAPI\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

@@ -1,51 +1,70 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.example.QRAPI.controller;
 
-/**
- *
- * @author Roddier
- */
-
-import com.example.QRAPI.service.QRCodeService;
 import com.example.QRAPI.service.ScanService;
+import com.example.QRAPI.model.QRData;
+import com.example.QRAPI.model.QRHash;
+import com.example.QRAPI.model.History;
+import com.example.QRAPI.repository.QRDataRepository;
+import com.example.QRAPI.repository.QRHashRepository;
+import com.example.QRAPI.repository.HistoryRepository;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.crypto.spec.SecretKeySpec;
+import java.security.Principal;
+import java.io.ByteArrayOutputStream;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
+
 @RestController
 @RequestMapping("/api/qr")
 public class QRCodeController {
 
-    private final QRCodeService qrCodeService;
+    private final QRDataRepository qrDataRepository;
+    private final QRHashRepository qrHashRepository;
+    private final HistoryRepository historyRepository;
     private final ScanService scanService;
 
-    public QRCodeController(QRCodeService qrCodeService, ScanService scanService) {
-        this.qrCodeService = qrCodeService;
+    public QRCodeController(QRDataRepository qrDataRepository, QRHashRepository qrHashRepository, HistoryRepository historyRepository, ScanService scanService) {
+        this.qrDataRepository = qrDataRepository;
+        this.qrHashRepository = qrHashRepository;
+        this.historyRepository = historyRepository;
         this.scanService = scanService;
     }
 
-    // Générer un code QR et le retourner sous forme d'image
-    @GetMapping("/generate")
-    public ResponseEntity<byte[]> generateQRCode(
-            @RequestParam Long clientId,
-            @RequestParam Long chauffeurId,
-            @RequestParam Long courseId) {
+    @PostMapping("/generate")
+    public ResponseEntity<byte[]> generateQRCode(@RequestBody QRData qrData, @RequestParam String secret, @RequestParam long expirationMillis, Principal fournisseur) {
         try {
-            byte[] qrCodeImage = qrCodeService.generateQRCodeImage(clientId, chauffeurId, courseId);
+            qrData.setId(UUID.randomUUID());
+            qrData.setFournisseur(fournisseur.getName());
+            qrDataRepository.save(qrData);
+
+            String rawData = qrData.toString();
+            String hashedData = hashData(rawData);
+
+            QRHash qrHash = new QRHash();
+	    qrHash.setId(UUID.randomUUID());
+	    qrHash.setHash(hashedData);
+	    qrHash.setQrDataId(qrData.getId());
+            qrHashRepository.save(qrHash);
+
+            String signedData = signData(hashedData, secret, expirationMillis);
+
+            byte[] qrCodeImage = generateQRCodeImageFromData(signedData);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.IMAGE_PNG);
@@ -56,40 +75,74 @@ public class QRCodeController {
         }
     }
 
-    // Scanner un QR Code et valider
-    @GetMapping("/scan")
-    public ResponseEntity<String> scanQRCode(@RequestParam String qrCodeData) {
-        try {
-            String result = scanService.processScan(qrCodeData);
-            return new ResponseEntity<>(result, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>("Erreur de confirmation", HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-    
-    @GetMapping("/view")
-    public ResponseEntity<byte[]> View(@RequestParam String qrCodeData) {
-        try {
-            byte[] qrCodeImage = generateQRCodeImageFromData(qrCodeData);
-            
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.IMAGE_PNG);
+    @PostMapping("/scan")
+    public ResponseEntity<String> scanQRCode(@RequestParam String qrCodeData, @RequestParam String secret, @RequestBody History history, Principal fournisseur) {
+String decodedData = verifySignature(qrCodeData, secret);
+if (decodedData == null) {
+System.out.println("Invalide \n");
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("QR Code invalide !");
+}        
 
-            return new ResponseEntity<>(qrCodeImage, headers, HttpStatus.OK);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+	try {
+            QRHash result = scanService.processScan(decodedData);
+	    if(result != null){
+            QRData data = qrDataRepository.findById(result.getQrDataId()).get();
+            history.setClientId(data.getClientId());
+            history.setChauffeurId(data.getChauffeurId());
+            history.setCourseId(data.getCourseId());
+            history.setFournisseur(data.getFournisseur());
+            historyRepository.save(history);
+            System.out.println("Le fournisseur " + fournisseur.getName() + " a effectué le scan des données : " + history + "\n");
+            return ResponseEntity.ok("Scan réussi");
+	    }else{
+	    System.out.println("Le fournisseur " + fournisseur.getName() + " a échoué un scan \n"); 
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("QR Code non trouvé.");
+        }} catch (Exception e) {
+    	    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur : " + e.getMessage());
         }
     }
-    
-    @GetMapping("/hello")
-    public String SayHello() {
-        return "Hello : Your Project is running ❣";
+
+    private String hashData(String data) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] encodedHash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : encodedHash) {
+            hexString.append(String.format("%02x", b));
+        }
+        return hexString.toString();
     }
-    
+
+    private String signData(String data, String secret, long expirationMillis) {
+        Key key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + expirationMillis);
+        
+        return Jwts.builder()
+                .setSubject(data)
+                .setIssuedAt(now)
+                .setExpiration(expiration)
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    private String verifySignature(String token, String secret) {
+    try {
+        Claims claims = Jwts.parserBuilder()
+            .setSigningKey(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
+        return claims.getSubject();
+    } catch (JwtException e) {
+        return null;
+    }
+}
+
+
     private byte[] generateQRCodeImageFromData(String qrData) throws WriterException, IOException {
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
         Map<EncodeHintType, Object> hintMap = new HashMap<>();
-        hintMap.put(EncodeHintType.MARGIN, 1); // Réduire les marges du QR code
+        hintMap.put(EncodeHintType.MARGIN, 1);
 
         BitMatrix bitMatrix = qrCodeWriter.encode(qrData, BarcodeFormat.QR_CODE, 350, 350, hintMap);
 
