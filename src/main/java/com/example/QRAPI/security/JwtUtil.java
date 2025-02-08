@@ -15,7 +15,7 @@ import java.util.function.Function;
 
 @Service
 public class JwtUtil {
-    @Value("cdd8c6184a5e56385a622578112b3b7500449fbcf980b434d5583983e1e79bd6")
+    @Value("464313da08dcfbc5e3bf6eb5367f87ec760ff7b9699505ef2ee806296da3e5a7565c74e3d89ffdca9ab55e5144f1fb9a92c2697ab67077b11ca134a510d8d77e")
     private String secretKey;
     
     private SecretKey getSigningKey() {
@@ -65,17 +65,23 @@ public class JwtUtil {
     }
 
     public String extractFournisseur(String token) {
-    return Jwts.parserBuilder()
-            .setSigningKey(secretKey)
-            .build()
-            .parseClaimsJws(token)
-            .getBody()
-            .getSubject();  // Récupère le "fournisseur"
+    
+        return extractClaim(token, claims -> claims.get("provider", String.class));
 }
 
 
     public Boolean validateToken(String token) {
         final String extractedEmail = extractFournisseur(token);
         return extractedEmail != null;
+    }
+// 🔹 Ajoute cette méthode pour convertir Hex en Bytes
+    private static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                                + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
     }
 }

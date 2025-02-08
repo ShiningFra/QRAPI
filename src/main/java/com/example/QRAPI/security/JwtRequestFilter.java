@@ -50,8 +50,9 @@ System.out.println("Ok 3\n");
                     new UsernamePasswordAuthenticationToken(fournisseur, null, null);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
-
+System.out.println("Ok 4\n");
         filterChain.doFilter(request, response);
+System.out.println("Ok 5\n");
     }
 
     private String extractToken(HttpServletRequest request) {

@@ -48,7 +48,8 @@ public class QRCodeController {
 
     @PostMapping("/generate")
     public ResponseEntity<byte[]> generateQRCode(@RequestBody QRData qrData, @RequestParam String secret, @RequestParam long expirationMillis, Principal fournisseur) {
-        try {
+  System.out.println("Utilisateur connecté : " + (fournisseur != null ? fournisseur.getName() : "NULL"));
+try {
             qrData.setId(UUID.randomUUID());
             qrData.setFournisseur(fournisseur.getName());
             qrDataRepository.save(qrData);
@@ -65,12 +66,14 @@ public class QRCodeController {
             String signedData = signData(hashedData, secret, expirationMillis);
 
             byte[] qrCodeImage = generateQRCodeImageFromData(signedData);
+System.out.println("Succès de génération \n");
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.IMAGE_PNG);
 
             return new ResponseEntity<>(qrCodeImage, headers, HttpStatus.OK);
         } catch (Exception e) {
+System.out.println("Echec de génération \n" + e.getMessage());
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
