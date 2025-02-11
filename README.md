@@ -22,7 +22,7 @@ Chaque utilisateur de l’API devra d’abord appeler l’endpoint d’authentif
 - **Paramètres** :  
   - `fournisseur` (passé en paramètre, par exemple dans le corps de la requête ou en query string)  
 - **Fonctionnement** :  
-  - L’API génère un token JWT avec le champ `sub` (subject) égal au nom du fournisseur.
+  - L’API génère un token JWT avec le champ `provider` (subject) égal au nom du fournisseur.
 - **Exemple d’appel avec cURL** :
   ```bash
   curl -X POST "http://localhost:8080/api/reserve?fournisseur=Fra%20Yuuki" \
@@ -252,28 +252,28 @@ Chaque utilisateur de l’API devra d’abord appeler l’endpoint d’authentif
 ### 3.2. Scénarios et Cas d'Utilisation
 
 #### **Scénario 1 : Génération d'un QR Code**
-- **Acteur** : Chauffeur (ou l'application de gestion de courses)  
+- **Acteur** : Application de gestion de courses)  
 - **Préconditions** :  
   - Une course est créée et enregistrée dans le système.
-  - L’utilisateur (chauffeur) s’est authentifié via `/api/reserve` et possède un token JWT.
+  - "L’application" s’est authentifiée via `/api/reserve` et possède un token JWT.
 - **Flux principal** :  
-  1. Le chauffeur envoie une requête `POST /api/qr/generate` avec les données de la course.
+  1. "L'application" envoie une requête `POST /api/qr/generate` avec les données QRData (mélange d'infos sur la course et sur la localisation spatiotemporelle du lieu du client au moment où il a voulu générer son code QR), la clé secrète de l'application, et une durée d'expiration (pour déterminer la validité du QR).
   2. Le système attribue un UUID à la course et enregistre l’information.
   3. Le système calcule un hash (SHA-256) des données de la course.
   4. Le hash est signé (avec la clé secrète et une durée d’expiration) pour générer un token.
   5. Ce token est transformé en image QR (PNG) via ZXing.
   6. Le QR code est renvoyé au client.
 - **Postconditions** :  
-  - Le QR code est généré et stocké (le hash et les données associées sont enregistrés dans la table `QRHash`).
+  - Le QR code est généré et stocké (le hash et les données associées sont enregistrées dans la table `QRHash` (en réalité il y a une autre table QRData pour les données en clair ...).
 
 #### **Scénario 2 : Scan et Validation d'un QR Code**
 - **Acteur** : Chauffeur ou Client (selon le processus métier)  
 - **Préconditions** :  
   - Un QR code a été généré et est en possession de l’acteur.
-  - L’acteur s’est authentifié et possède un token JWT (issu via `/api/reserve`).
+  - L'application sur laquelle les deux interagissent s'est authentifiée et possède un token JWT.
 - **Flux principal** :  
-  1. L’acteur scanne le QR code via une application mobile ou un lecteur.
-  2. La requête `POST /api/qr/scan` est envoyée avec le contenu du QR code et les données d’historique.
+  1. Le chauffeur scanne le QR code via une application mobile ou un lecteur.
+  2. La requête `POST /api/qr/scan` est envoyée avec le contenu du QR code et les données d’historique (localisation spatiale, et temporelle), et la clé secrète de l'application.
   3. Le système décode le token contenu dans le QR code et vérifie sa signature.
   4. Si le token est valide, le système retrouve les données associées dans la table `QRData`.
   5. Le système enregistre l'opération dans la table `History`.
@@ -281,6 +281,7 @@ Chaque utilisateur de l’API devra d’abord appeler l’endpoint d’authentif
 - **Flux alternatif** :  
   - Si le QR code est invalide ou expiré, le système renvoie une réponse d’erreur (ex. : "QR Code invalide ou non trouvé").
 
+NB : Chaque organisation utilisant l'API doit générer leur clés propre qui sera utiliser pour générer le QRCode.
 ---
 
 ### 3.3. Diagramme de Classes (UML Simplifié)
