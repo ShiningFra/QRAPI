@@ -79,7 +79,7 @@ System.out.println("Echec de génération \n" + e.getMessage());
     }
 
     @PostMapping("/scan")
-    public ResponseEntity<String> scanQRCode(@RequestParam String qrCodeData, @RequestParam String secret, @RequestBody History history, Principal fournisseur) {
+    public ResponseEntity<?> scanQRCode(@RequestParam String qrCodeData, @RequestParam String secret, @RequestBody History history, Principal fournisseur) {
 String decodedData = verifySignature(qrCodeData, secret);
 if (decodedData == null) {
 System.out.println("Invalide \n");
@@ -87,20 +87,21 @@ System.out.println("Invalide \n");
 }        
 
 	try {
-            QRHash result = scanService.processScan(decodedData);
+QRHash result = scanService.processScan(decodedData);
+        QRData data = null;
 	    if(result != null){
-            QRData data = qrDataRepository.findById(result.getQrDataId()).get();
+            data = qrDataRepository.findById(result.getQrDataId()).get();
             history.setClientId(data.getClientId());
             history.setChauffeurId(data.getChauffeurId());
             history.setCourseId(data.getCourseId());
             history.setFournisseur(data.getFournisseur());
             historyRepository.save(history);
             System.out.println("Le fournisseur " + fournisseur.getName() + " a effectué le scan des données : " + history + "\n");
-            return ResponseEntity.ok("Scan réussi");
 	    }else{
 	    System.out.println("Le fournisseur " + fournisseur.getName() + " a échoué un scan \n"); 
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("QR Code non trouvé.");
-        }} catch (Exception e) {
+        }
+return ResponseEntity.ok(data);
+} catch (Exception e) {
     	    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur : " + e.getMessage());
         }
     }
