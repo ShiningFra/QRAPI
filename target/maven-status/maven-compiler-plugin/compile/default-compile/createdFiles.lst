@@ -7,6 +7,7 @@ com\example\QRAPI\model\QRData.class
 com\example\QRAPI\repository\HistoryRepository.class
 com\example\QRAPI\security\JwtRequestFilter.class
 com\example\QRAPI\repository\QRDataRepository.class
+com\example\QRAPI\QrapiApplication.class
 com\example\QRAPI\controller\AuthController.class
 com\example\QRAPI\security\JwtUtil.class
 com\example\QRAPI\model\QRHash.class
