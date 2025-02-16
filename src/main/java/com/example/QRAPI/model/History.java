@@ -9,51 +9,59 @@ public class History {
     @PrimaryKey
     private UUID id;
 
-    private Long clientId;
-    private Long chauffeurId;
-    private Long courseId;
-    private String lieu;
-    private String fournisseur;
-    private String heure;
+    private Long client_id;
+    private Long driver_id;   // anciennement chauffeurId
+    private Long trip_id;     // anciennement courseId
+    private String location;  // anciennement lieu
+    private String supplier;  // anciennement fournisseur
+    private String hour;      // anciennement heure
     private String date;
-    private String ville;
-    private String pays;
+    private String city;      // anciennement ville
+    private String country;   // anciennement pays
 
-    // Getters et setters
+    // Getters et setters (noms des méthodes inchangés)
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
-    public Long getClientId() { return clientId; }
-    public void setClientId(Long clientId) { this.clientId = clientId; }
-    public Long getChauffeurId() { return chauffeurId; }
-    public void setChauffeurId(Long chauffeurId) { this.chauffeurId = chauffeurId; }
-    public Long getCourseId() { return courseId; }
-    public void setCourseId(Long courseId) { this.courseId = courseId; }
-    public String getLieu() { return lieu; }
-    public void setLieu(String lieu) { this.lieu = lieu; }
-    public String getFournisseur() { return fournisseur; }
-    public void setFournisseur(String fournisseur) { this.fournisseur = fournisseur; }
-    public String getHeure() { return heure; }
-    public void setHeure(String heure) { this.heure = heure; }
+
+    public Long getClientId() { return client_id; }
+    public void setClientId(Long client_id) { this.client_id = client_id; }
+
+    public Long getChauffeurId() { return driver_id; }
+    public void setChauffeurId(Long driver_id) { this.driver_id = driver_id; }
+
+    public Long getCourseId() { return trip_id; }
+    public void setCourseId(Long trip_id) { this.trip_id = trip_id; }
+
+    public String getLieu() { return location; }
+    public void setLieu(String location) { this.location = location; }
+
+    public String getFournisseur() { return supplier; }
+    public void setFournisseur(String supplier) { this.supplier = supplier; }
+
+    public String getHeure() { return hour; }
+    public void setHeure(String hour) { this.hour = hour; }
+
     public String getDate() { return date; }
     public void setDate(String date) { this.date = date; }
-    public String getVille() { return ville; }
-    public void setVille(String ville) { this.ville = ville; }
-    public String getPays() { return pays; }
-    public void setPays(String pays) { this.pays = pays; }
+
+    public String getVille() { return city; }
+    public void setVille(String city) { this.city = city; }
+
+    public String getPays() { return country; }
+    public void setPays(String country) { this.country = country; }
 
     @Override
     public String toString() {
         return "{"
-            + "\"clientId\":" + clientId + ","
-            + "\"chauffeurId\":" + chauffeurId + ","
-            + "\"courseId\":" + courseId + ","
-            + "\"lieu\":\"" + lieu + "\","
-            + "\"fournisseur\":\"" + fournisseur + "\","
-            + "\"heure\":\"" + heure + "\","
+            + "\"clientId\":" + client_id + ","
+            + "\"chauffeurId\":" + driver_id + ","
+            + "\"courseId\":" + trip_id + ","
+            + "\"lieu\":\"" + location + "\","
+            + "\"fournisseur\":\"" + supplier + "\","
+            + "\"heure\":\"" + hour + "\","
             + "\"date\":\"" + date + "\","
-            + "\"ville\":\"" + ville + "\","
-            + "\"pays\":\"" + pays + "\""
+            + "\"ville\":\"" + city + "\","
+            + "\"pays\":\"" + country + "\""
             + "}";
     }
-
 }
