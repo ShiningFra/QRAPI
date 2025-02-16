@@ -4,6 +4,7 @@ com\example\QRAPI\repository\QRHashRepository.class
 com\example\QRAPI\model\History.class
 com\example\QRAPI\security\SecurityConfig.class
 com\example\QRAPI\model\QRData.class
+com\example\QRAPI\CassandraConfig.class
 com\example\QRAPI\repository\HistoryRepository.class
 com\example\QRAPI\security\JwtRequestFilter.class
 com\example\QRAPI\repository\QRDataRepository.class
