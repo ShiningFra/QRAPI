@@ -157,7 +157,48 @@ lors des appels aux endpoints suivants.
    ```
    Puis, dans `cqlsh`, créez (si nécessaire) le keyspace :
    ```cql
-   CREATE KEYSPACE IF NOT EXISTS transportapp WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+   -- Créer le keyspace "transportapp"
+CREATE KEYSPACE IF NOT EXISTS transportapp 
+WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+
+-- Sélectionner le keyspace
+USE transportapp;
+
+-- Créer la table QRData
+CREATE TABLE IF NOT EXISTS qr_data (
+    id uuid PRIMARY KEY,
+    client_id bigint,
+    driver_id bigint,
+    trip_id bigint,
+    location text,
+    hour text,
+    date text,
+    city text,
+    country text,
+    fournisseur text
+);
+
+-- Créer la table QRHash
+CREATE TABLE IF NOT EXISTS qr_hash (
+    id uuid PRIMARY KEY,
+    hash text,
+    qr_data_id uuid
+);
+
+-- Créer la table History
+CREATE TABLE IF NOT EXISTS history (
+    id uuid PRIMARY KEY,
+    client_id bigint,
+    driver_id bigint,
+    trip_id bigint,
+    location text,
+    supplier text,
+    hour text,
+    date text,
+    city text,
+    country text
+);
+
    ```
 
 2. **Configurer l’application**  
