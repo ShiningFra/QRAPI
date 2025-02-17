@@ -203,24 +203,6 @@ lors des appels aux endpoints suivants.
    ```
    L’application sera accessible sur `http://localhost:8080`.
 
-### 3.4. Déploiement via Docker (Optionnel)
-1. **Créer un Dockerfile** à la racine du projet :
-   ```dockerfile
-   FROM openjdk:17-jdk-alpine
-   COPY target/QRAPI-0.0.1-SNAPSHOT.jar /app/QRAPI.jar
-   WORKDIR /app
-   EXPOSE 8080
-   CMD ["java", "-jar", "QRAPI.jar"]
-   ```
-2. **Construire l'image Docker** :
-   ```bash
-   docker build -t qrapi .
-   ```
-3. **Lancer le conteneur Docker** :
-   ```bash
-   docker run -p 8080:8080 qrapi
-   ```
-
 ---
 
 ## 4. Modèle Mathématique et Cas d'Utilisation
