@@ -67,7 +67,8 @@ lors des appels aux endpoints suivants.
       "heure": "14:30",
       "date": "2025-02-07",
       "ville": "Paris",
-      "pays": "France"
+      "pays": "France",
+      "fournisseur": "NomDuFournisseur"
     }
     ```
   - **Authentification :**  
@@ -76,10 +77,10 @@ lors des appels aux endpoints suivants.
     Authorization: Bearer <TOKEN>
     ```
 - **Fonctionnement :**
-  1. Le contrôleur attribue à l’objet `QRData` un identifiant unique (UUID) et enregistre le nom du fournisseur (extrait du `Principal`).
-  2. Les données de `QRData` sont converties en chaîne (via `toString()`, par exemple) puis hachées avec l’algorithme SHA-256.
-  3. Le hash est ensuite signé en créant un token JWT, à l’aide de la clé `secret` et d’une durée de validité définie par `expirationMillis`.
-  4. Le token signé est converti en image QR (au format PNG) grâce à la bibliothèque ZXing.
+  1. Le contrôleur attribue à l’objet `QRData` un identifiant unique (UUID) et enregistre le nom du fournisseur extrait du `Principal`.
+  2. Les données de `QRData` sont converties en chaîne (par exemple via `toString()`) puis hachées avec l’algorithme SHA-256.
+  3. Le hash est signé en créant un token JWT à l’aide de la clé `secret` et de la durée de validité définie par `expirationMillis`.
+  4. Le token signé est converti en image QR au format PNG grâce à la bibliothèque ZXing.
 - **Exemple d’appel cURL :**
   ```bash
   curl -X POST "http://localhost:8080/api/qr/generate?secret=MaSuperCleSecrete&expirationMillis=3600000" \
@@ -93,11 +94,12 @@ lors des appels aux endpoints suivants.
              "heure": "14:30",
              "date": "2025-02-07",
              "ville": "Paris",
-             "pays": "France"
+             "pays": "France",
+             "fournisseur": "NomDuFournisseur"
            }'
   ```
 - **Réponse :**  
-  Le serveur renvoie une image PNG (sous forme de bytes) contenant le QR code généré. Le header de la réponse sera défini sur `Content-Type: image/png`.
+  Le serveur renvoie une image PNG (sous forme de bytes) contenant le QR code généré. Le header de la réponse est `Content-Type: image/png`.
 
 ---
 
@@ -106,10 +108,10 @@ lors des appels aux endpoints suivants.
 - **Méthode :** `POST`  
 - **Paramètres :**
   - **Query parameters :**
-    - `qrCodeData` : Le token JWT (issu du QR code) contenant le hash signé
+    - `qrCodeData` : Le token JWT issu du QR code contenant le hash signé
     - `secret` : La clé utilisée pour vérifier la signature du token
   - **Corps (JSON) :**  
-    Un objet `History` qui contient des informations supplémentaires à enregistrer lors du scan (par exemple, des champs personnalisés relatifs à l’opération)
+    Un objet `History` qui contient les informations supplémentaires à enregistrer lors du scan (par exemple, des champs personnalisés relatifs à l’opération)
   - **Authentification :**  
     Le header HTTP doit contenir :
     ```
@@ -117,10 +119,10 @@ lors des appels aux endpoints suivants.
     ```
 - **Fonctionnement :**
   1. Le contrôleur décode et vérifie la signature du token contenu dans `qrCodeData` en utilisant la clé `secret`.  
-     - Si la signature n’est pas valide, la réponse est un HTTP 401 avec le message « QR Code invalide ! ».
+     - Si la signature n'est pas valide, la réponse est un HTTP 401 avec le message « QR Code invalide ! ».
   2. En cas de signature valide, le service de scan (via `ScanService`) récupère l’objet `QRHash` associé.
   3. À partir du `QRHash`, le contrôleur recherche les données complètes dans la table `QRData`.
-  4. L’objet `History` est complété avec des informations extraites de `QRData` (telles que `clientId`, `chauffeurId`, `courseId`, `fournisseur`) et sauvegardé dans la base.
+  4. L’objet `History` est complété avec les informations extraites de `QRData` (par exemple `client_id`, `driver_id`, `trip_id`, `fournisseur`) et est sauvegardé dans la base.
 - **Exemple d’appel cURL :**
   ```bash
   curl -X POST "http://localhost:8080/api/qr/scan?qrCodeData=<JWT_QR_CODE>&secret=MaSuperCleSecrete" \
@@ -132,9 +134,9 @@ lors des appels aux endpoints suivants.
            }'
   ```
 - **Réponse :**  
-  - En cas de succès, le serveur renvoie l’objet `QRData` correspondant (ou `null` s’il n’est pas trouvé) au format JSON, avec un status HTTP 200.
-  - En cas d’erreur de signature, une réponse HTTP 401 est renvoyée.
-  - En cas d’exception, une réponse HTTP 400 avec un message d’erreur est renvoyée.
+  - En cas de succès, le serveur renvoie l’objet `QRData` correspondant (ou `null` s'il n'est pas trouvé) au format JSON avec un status HTTP 200.
+  - En cas d'erreur de signature, une réponse HTTP 401 est renvoyée.
+  - En cas d'exception, une réponse HTTP 400 avec un message d'erreur est renvoyée.
 
 ---
 
@@ -153,13 +155,13 @@ lors des appels aux endpoints suivants.
    ```bash
    docker run --name cassandra -d -p 9042:9042 cassandra:latest
    ```
-   Puis, dans `cqlsh`, créez (si nécessaire) le keyspace :
+   Puis, dans `cqlsh`, créez (si nécessaire) le keyspace :
    ```cql
    CREATE KEYSPACE IF NOT EXISTS transportapp WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
    ```
 
 2. **Configurer l’application**  
-   Dans le fichier `src/main/resources/application.properties` (ou `application.yml`), configurez Cassandra :
+   Dans le fichier `src/main/resources/application.properties` (ou `application.yml`), configurez Cassandra :
    ```properties
    spring.application.name=QRAPI
    spring.data.cassandra.contact-points=127.0.0.1
@@ -171,7 +173,7 @@ lors des appels aux endpoints suivants.
    ```
 
 3. **Vérifier les dépendances Maven**  
-   Assurez-vous d’inclure dans votre `pom.xml` les dépendances suivantes (et toute autre nécessaire, par exemple pour JJWT et ZXing) :
+   Assurez-vous d’inclure dans votre `pom.xml` les dépendances suivantes (ainsi que celles nécessaires pour JJWT et ZXing) :
    ```xml
    <dependency>
        <groupId>org.springframework.boot</groupId>
@@ -190,12 +192,12 @@ lors des appels aux endpoints suivants.
 
 ### 3.3. Construction et Lancement
 1. **Construire l’application**  
-   Avec Maven, exécutez :
+   Avec Maven, exécutez :
    ```bash
    mvn clean install
    ```
 2. **Lancer l’application**  
-   Exécutez :
+   Exécutez :
    ```bash
    java -jar target/QRAPI-0.0.1-SNAPSHOT.jar
    ```
@@ -231,11 +233,11 @@ lors des appels aux endpoints suivants.
 - **Clients (L)**  
   \( L = \{ l \mid l = (id_l, nom, \dots ) \} \)
 - **Courses (R)**  
-  \( R = \{ r \mid r = (id_r, id\_chauffeur, id\_client, lieu, heure, date, ville, pays) \} \)
+  \( R = \{ r \mid r = (id_r, id_chauffeur, id_client, lieu, heure, date, ville, pays) \} \)
 - **QR Codes (Q)**  
-  \( Q = \{ q \mid q = (id_q, hash, id\_course) \} \)
+  \( Q = \{ q \mid q = (id_q, hash, id_course) \} \)
 - **Historique de Scans (H)**  
-  \( H = \{ h \mid h = (id_h, id\_course, id\_chauffeur, id\_client, timestamp) \} \)
+  \( H = \{ h \mid h = (id_h, id_course, id_chauffeur, id_client, timestamp) \} \)
 
 #### Fonctions
 - **Génération du QR Code**  
@@ -273,7 +275,7 @@ lors des appels aux endpoints suivants.
      - Un objet `History` contenant des informations supplémentaires
   2. Le système vérifie la signature du token.
   3. En cas de succès, il récupère les données associées (via `QRHash` et `QRData`) et met à jour l’historique.
-  4. Le système renvoie l’objet `QRData` correspondant (ou `null` s’il n’est pas trouvé).
+  4. Le système renvoie l’objet `QRData` correspondant (ou `null` s'il n'est pas trouvé).
 - **Flux Alternatif :**
   - Si la signature est invalide ou le QR code n’est pas trouvé, une erreur (HTTP 401 ou 404) est renvoyée.
 - **Postconditions :**
@@ -289,7 +291,17 @@ lors des appels aux endpoints suivants.
 - **QRHash**  
   Enregistre le hash signé associé à une instance de `QRData` et la référence à son identifiant.
 - **History**  
-  Stocke l’historique des scans avec les identifiants et, éventuellement, un timestamp.
+  Stocke l’historique des scans avec les informations suivantes :
+  - `id` (UUID)
+  - `client_id` (Long)
+  - `driver_id` (Long)
+  - `trip_id` (Long)
+  - `location` (String)
+  - `supplier` (String)
+  - `hour` (String)
+  - `date` (String)
+  - `city` (String)
+  - `country` (String)
 
 ### 5.2. Services et Contrôleurs
 - **QRCodeController**  
@@ -305,16 +317,16 @@ lors des appels aux endpoints suivants.
 |    QRData      |       |    QRHash      |       |    History     |
 +----------------+       +----------------+       +----------------+
 | - id : UUID    |<>-----| - id : UUID    |       | - id : UUID    |
-| - clientId     |       | - hash : String|       | - courseId     |
-| - chauffeurId  |       | - qrDataId     |       | - clientId     |
-| - courseId     |       +----------------+       | - chauffeurId  |
-| - lieu         |                              | - fournisseur  |
-| - heure        |                              | - timestamp    |
-| - date         |                              +----------------+
-| - ville        |
-| - pays         |
-| - fournisseur  |
-+----------------+
+| - client_id    |       | - hash : String|       | - client_id    |
+| - driver_id    |       | - qr_data_id   |       | - driver_id    |
+| - trip_id      |       +----------------+       | - trip_id      |
+| - location     |                              | - location     |
+| - hour         |                              | - supplier     |
+| - date         |                              | - hour         |
+| - city         |                              | - date         |
+| - country      |                              | - city         |
+| - fournisseur  |                              | - country      |
++----------------+                              +----------------+
 
             +--------------------+
             |  QRCodeController  |
@@ -332,5 +344,3 @@ lors des appels aux endpoints suivants.
             |  (Logique de scan) |
             +--------------------+
 ```
-
----
