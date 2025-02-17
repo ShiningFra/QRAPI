@@ -129,8 +129,11 @@ lors des appels aux endpoints suivants.
        -H "Content-Type: application/json" \
        -H "Authorization: Bearer <TOKEN>" \
        -d '{
-             "someHistoryField": "valeur",
-             "autreChamp": "valeur"
+             "lieu": "valeur",
+             "ville": "valeur",
+             "pays": "valeur",
+             "date": "valeur",
+              "heure": "valeur"
            }'
   ```
 - **Réponse :**  
