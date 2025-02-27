@@ -3,6 +3,7 @@
 # QRAPI
 
 L'API de génération et de scan de QR codes pour un système d'authentification handshake et de gestion de courses.
+Le dossier "RAPPORT" contient le rapport de notre travail.
 
 ---
 
