@@ -1,64 +1,46 @@
 ---
 
-# QRAPI
+# Cahier des Charges – QRAPI
 
-L'API de génération et de scan de QR codes pour un système d'authentification handshake et de gestion de courses.
-Le dossier "RAPPORT" contient le rapport de notre travail.
+## 1. Contexte et Objectifs
 
----
+### 1.1 Contexte
+La **QRAPI** est une API REST développée en Spring Boot destinée à la génération et au scan de QR codes dans le cadre d’un système d’authentification par handshake et de gestion de courses. L’API s’inscrit dans un écosystème plus large dans lequel un endpoint d’authentification (ex. `/api/reserve`) permet d’obtenir un token JWT pour sécuriser les échanges avec les autres endpoints.
 
-## 1. Présentation Générale
-
-La **QRAPI** est une API REST développée en Spring Boot qui permet de :
-
-- **Générer des QR codes** contenant des informations relatives à une course (identifiants client, chauffeur, course, localisation, etc.)
-- **Scanner et valider ces QR codes** pour confirmer une course ou enregistrer une action (par exemple, mettre à jour l’historique d’un scan)
-- **Sécuriser l’accès aux endpoints** via l’authentification par token JWT
-
-> **Note sur l'authentification :**  
-> Bien que l’exemple présente ici les endpoints pour générer et scanner un QR code, l’obtention d’un token JWT (via l’endpoint `/api/reserve`) est nécessaire pour sécuriser l’accès. Cet endpoint d’authentification est attendu dans l’architecture globale mais n’est pas détaillé dans ce contrôleur.
-
-Chaque utilisateur doit obtenir un token JWT (généralement via `/api/reserve`) et l’inclure dans l’en-tête HTTP :
-
-```
-Authorization: Bearer <TOKEN>
-```
-
-lors des appels aux endpoints suivants.
+### 1.2 Objectifs
+- **Génération de QR codes** : Créer des QR codes intégrant un token JWT signé (contenant des informations sur une course) pour garantir leur intégrité et leur validité dans le temps.
+- **Scan et validation de QR codes** : Permettre le scan d’un QR code pour valider une course ou enregistrer une action, avec vérification de la signature.
+- **Sécurisation** : Protéger l’accès aux endpoints via un mécanisme d’authentification par token JWT.
+- **Traçabilité** : Enregistrer les historiques de scan pour le suivi des actions et la gestion de la course.
 
 ---
 
-## 2. Endpoints Principaux
+## 2. Périmètre Fonctionnel
 
-### a) Authentification – Réservation du Token  
-**Remarque :** Cet endpoint n'est pas implémenté dans ce contrôleur. Il est supposé exister dans le cadre de l’API globale pour générer un token JWT.  
-- **URL :** `/api/reserve`  
-- **Méthode :** `POST`  
-- **Paramètres :**  
-  - `fournisseur` (passé dans le corps de la requête ou en query string)  
-- **Exemple d’appel avec cURL :**
-  ```bash
-  curl -X POST "http://localhost:8080/api/reserve?fournisseur=Fra%20Yuuki" \
-       -H "Content-Type: application/json"
-  ```
-- **Réponse attendue :**
+### 2.1 Endpoints
+
+#### a) Authentification – Réservation du Token
+- **URL** : `/api/reserve`
+- **Méthode** : `POST`
+- **Paramètres** :  
+  - `fournisseur` (corps de la requête ou query string)
+- **But** : Obtenir un token JWT nécessaire pour accéder aux autres endpoints.
+- **Réponse attendue** :  
   ```json
   {
-      "token": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJGcmEgWXV1a2kiLCJpYXQiOjE2MzMyNDk5OTl9.XXXXXXXXXXXXXXX"
+      "token": "TOKEN_JWT"
   }
   ```
+- **Remarque** : Cet endpoint est supposé exister dans l’architecture globale et n’est pas détaillé dans le contrôleur actuel.
 
----
-
-### b) Génération du QR Code  
-- **URL :** `/api/qr/generate`  
-- **Méthode :** `POST`  
-- **Paramètres :**
-  - **Query parameters :**
-    - `secret` : La clé utilisée pour signer le QR code (doit respecter la longueur minimale pour HS256, généralement 32 caractères ou plus)
-    - `expirationMillis` : La durée de validité (en millisecondes) du token signé qui sera intégré dans le QR code
-  - **Corps (JSON) :**  
-    Un objet de type `QRData` contenant par exemple :
+#### b) Génération du QR Code
+- **URL** : `/api/qr/generate`
+- **Méthode** : `POST`
+- **Paramètres** :
+  - **Query Parameters** :
+    - `secret` : Clé utilisée pour signer le QR code (min. 32 caractères pour HS256).
+    - `expirationMillis` : Durée de validité en millisecondes du token.
+  - **Corps (JSON)** : Objet `QRData` contenant les informations de course, par exemple :
     ```json
     {
       "clientId": 123456,
@@ -72,103 +54,66 @@ lors des appels aux endpoints suivants.
       "fournisseur": "NomDuFournisseur"
     }
     ```
-  - **Authentification :**  
-    Le token JWT (obtenu via `/api/reserve`) doit être transmis dans l’en-tête :
-    ```
-    Authorization: Bearer <TOKEN>
-    ```
-- **Fonctionnement :**
-  1. Le contrôleur attribue à l’objet `QRData` un identifiant unique (UUID) et enregistre le nom du fournisseur extrait du `Principal`.
-  2. Les données de `QRData` sont converties en chaîne (par exemple via `toString()`) puis hachées avec l’algorithme SHA-256.
-  3. Le hash est signé en créant un token JWT à l’aide de la clé `secret` et de la durée de validité définie par `expirationMillis`.
-  4. Le token signé est converti en image QR au format PNG grâce à la bibliothèque ZXing.
-- **Exemple d’appel cURL :**
-  ```bash
-  curl -X POST "http://localhost:8080/api/qr/generate?secret=MaSuperCleSecrete&expirationMillis=3600000" \
-       -H "Content-Type: application/json" \
-       -H "Authorization: Bearer <TOKEN>" \
-       -d '{
-             "clientId": 123456,
-             "chauffeurId": 654321,
-             "courseId": 987654,
-             "lieu": "Gare Centrale",
-             "heure": "14:30",
-             "date": "2025-02-07",
-             "ville": "Paris",
-             "pays": "France",
-             "fournisseur": "NomDuFournisseur"
-           }'
+- **Authentification** : Le header HTTP doit inclure  
   ```
-- **Réponse :**  
-  Le serveur renvoie une image PNG (sous forme de bytes) contenant le QR code généré. Le header de la réponse est `Content-Type: image/png`.
+  Authorization: Bearer <TOKEN>
+  ```
+- **Processus** :
+  1. Attribution d’un UUID à l’objet `QRData` et récupération du fournisseur via le `Principal`.
+  2. Transformation de `QRData` en chaîne et génération d’un hash (SHA-256).
+  3. Signature du hash via un token JWT avec la clé `secret` et la durée définie.
+  4. Conversion du token signé en image QR (format PNG) grâce à ZXing.
+- **Réponse** : Image PNG contenant le QR code.
+
+#### c) Scan du QR Code
+- **URL** : `/api/qr/scan`
+- **Méthode** : `POST`
+- **Paramètres** :
+  - **Query Parameters** :
+    - `qrCodeData` : Token JWT issu du QR code (contenant le hash signé).
+    - `secret` : Clé utilisée pour vérifier la signature.
+  - **Corps (JSON)** : Objet `History` avec des informations complémentaires sur l’opération de scan.
+- **Authentification** :  
+  ```
+  Authorization: Bearer <TOKEN>
+  ```
+- **Processus** :
+  1. Décodage et vérification du token contenu dans `qrCodeData` avec la clé `secret`.
+     - En cas d’invalidité, renvoi d’un HTTP 401 (« QR Code invalide ! »).
+  2. Si la signature est valide, récupération de l’objet `QRHash` correspondant.
+  3. Recherche dans la base des données complètes associées (table `QRData`).
+  4. Complétion et enregistrement d’un objet `History` avec les informations de `QRData`.
+- **Réponses** :
+  - **Succès** : Renvoi de l’objet `QRData` au format JSON, status HTTP 200.
+  - **Erreur** : HTTP 401 en cas de signature invalide, ou HTTP 400 avec message en cas d’exception.
 
 ---
 
-### c) Scan du QR Code  
-- **URL :** `/api/qr/scan`  
-- **Méthode :** `POST`  
-- **Paramètres :**
-  - **Query parameters :**
-    - `qrCodeData` : Le token JWT issu du QR code contenant le hash signé
-    - `secret` : La clé utilisée pour vérifier la signature du token
-  - **Corps (JSON) :**  
-    Un objet `History` qui contient les informations supplémentaires à enregistrer lors du scan (par exemple, des champs personnalisés relatifs à l’opération)
-  - **Authentification :**  
-    Le header HTTP doit contenir :
-    ```
-    Authorization: Bearer <TOKEN>
-    ```
-- **Fonctionnement :**
-  1. Le contrôleur décode et vérifie la signature du token contenu dans `qrCodeData` en utilisant la clé `secret`.  
-     - Si la signature n'est pas valide, la réponse est un HTTP 401 avec le message « QR Code invalide ! ».
-  2. En cas de signature valide, le service de scan (via `ScanService`) récupère l’objet `QRHash` associé.
-  3. À partir du `QRHash`, le contrôleur recherche les données complètes dans la table `QRData`.
-  4. L’objet `History` est complété avec les informations extraites de `QRData` (par exemple `client_id`, `driver_id`, `trip_id`, `fournisseur`) et est sauvegardé dans la base.
-- **Exemple d’appel cURL :**
-  ```bash
-  curl -X POST "http://localhost:8080/api/qr/scan?qrCodeData=<JWT_QR_CODE>&secret=MaSuperCleSecrete" \
-       -H "Content-Type: application/json" \
-       -H "Authorization: Bearer <TOKEN>" \
-       -d '{
-             "lieu": "valeur",
-             "ville": "valeur",
-             "pays": "valeur",
-             "date": "valeur",
-              "heure": "valeur"
-           }'
-  ```
-- **Réponse :**  
-  - En cas de succès, le serveur renvoie l’objet `QRData` correspondant (ou `null` s'il n'est pas trouvé) au format JSON avec un status HTTP 200.
-  - En cas d'erreur de signature, une réponse HTTP 401 est renvoyée.
-  - En cas d'exception, une réponse HTTP 400 avec un message d'erreur est renvoyée.
+## 3. Spécifications Techniques et Conception
 
----
+### 3.1 Architecture Globale
+L’API repose sur une architecture **REST** basée sur Spring Boot. Les composants clés incluent :
 
-## 3. Guide de Déploiement
+- **Contrôleur** : `QRCodeController` qui gère les endpoints de génération et de scan.
+- **Services** :  
+  - `ScanService` pour la logique métier relative à la validation des QR codes.
+  - `JwtUtil` (ou équivalent) pour la création et la vérification des tokens JWT.
+- **Repositories** : Accès aux tables Cassandra (`QRData`, `QRHash`, `History`).
 
-### 3.1. Prérequis
-- **Java 11 ou supérieur** (idéalement Java 17 ou 23)
-- **Maven** ou **Gradle** pour la construction
-- **Cassandra** (installé localement, en Docker ou sur un cluster distant)
-- **Docker** (optionnel, pour containeriser l’application et/ou la base de données)
+### 3.2 Modèle de Données
+La base de données (Cassandra) contient les tables suivantes :
 
-### 3.2. Configuration et Préparation
-1. **Configurer la base de données Cassandra**  
-   Assurez-vous que Cassandra est installé et accessible.  
-   Exemple avec Docker :
-   ```bash
-   docker run --name cassandra -d -p 9042:9042 cassandra:latest
-   ```
-   Puis, dans `cqlsh`, créez (si nécessaire) le keyspace :
-   ```cql
-   -- Créer le keyspace "transportapp"
+- **Table QRData** : Stocke les informations de course et les données intégrées dans le QR code.
+- **Table QRHash** : Enregistre le hash signé et la référence à l’UUID de QRData.
+- **Table History** : Historique des scans avec les informations de la course et du scan.
+
+#### Schéma simplifié en CQL :
+```cql
 CREATE KEYSPACE IF NOT EXISTS transportapp 
 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
 
--- Sélectionner le keyspace
 USE transportapp;
 
--- Créer la table QRData
 CREATE TABLE IF NOT EXISTS qr_data (
     id uuid PRIMARY KEY,
     client_id bigint,
@@ -182,14 +127,12 @@ CREATE TABLE IF NOT EXISTS qr_data (
     fournisseur text
 );
 
--- Créer la table QRHash
 CREATE TABLE IF NOT EXISTS qr_hash (
     id uuid PRIMARY KEY,
     hash text,
     qr_data_id uuid
 );
 
--- Créer la table History
 CREATE TABLE IF NOT EXISTS history (
     id uuid PRIMARY KEY,
     client_id bigint,
@@ -202,143 +145,9 @@ CREATE TABLE IF NOT EXISTS history (
     city text,
     country text
 );
+```
 
-   ```
-
-2. **Configurer l’application**  
-   Dans le fichier `src/main/resources/application.properties` (ou `application.yml`), configurez Cassandra :
-   ```properties
-   spring.application.name=QRAPI
-   spring.data.cassandra.contact-points=127.0.0.1
-   spring.data.cassandra.port=9042
-   spring.data.cassandra.keyspace-name=transportapp
-   spring.data.cassandra.local-datacenter=datacenter1
-   spring.data.cassandra.schema-action=create-if-not-exists
-   server.port=8080
-   ```
-
-3. **Vérifier les dépendances Maven**  
-   Assurez-vous d’inclure dans votre `pom.xml` les dépendances suivantes (ainsi que celles nécessaires pour JJWT et ZXing) :
-   ```xml
-   <dependency>
-       <groupId>org.springframework.boot</groupId>
-       <artifactId>spring-boot-starter-data-cassandra</artifactId>
-   </dependency>
-   <dependency>
-       <groupId>org.springframework.boot</groupId>
-       <artifactId>spring-boot-starter-web</artifactId>
-   </dependency>
-   <dependency>
-       <groupId>org.springframework.boot</groupId>
-       <artifactId>spring-boot-starter-security</artifactId>
-   </dependency>
-   <!-- Dépendances pour JJWT, ZXing, etc. -->
-   ```
-
-### 3.3. Construction et Lancement
-1. **Construire l’application**  
-   Avec Maven, exécutez :
-   ```bash
-   mvn clean install
-   ```
-2. **Lancer l’application**  
-   Exécutez :
-   ```bash
-   java -jar target/QRAPI-0.0.1-SNAPSHOT.jar
-   ```
-   L’application sera accessible sur `http://localhost:8080`.
-
----
-
-## 4. Modèle Mathématique et Cas d'Utilisation
-
-### 4.1. Modèle Mathématique
-
-#### Entités
-- **Chauffeurs (C)**  
-  \( C = \{ c \mid c = (id_c, nom, \dots ) \} \)
-- **Clients (L)**  
-  \( L = \{ l \mid l = (id_l, nom, \dots ) \} \)
-- **Courses (R)**  
-  \( R = \{ r \mid r = (id_r, id_chauffeur, id_client, lieu, heure, date, ville, pays) \} \)
-- **QR Codes (Q)**  
-  \( Q = \{ q \mid q = (id_q, hash, id_course) \} \)
-- **Historique de Scans (H)**  
-  \( H = \{ h \mid h = (id_h, id_course, id_chauffeur, id_client, timestamp) \} \)
-
-#### Fonctions
-- **Génération du QR Code**  
-  Une fonction \( f: R \to Q \) qui prend une course et génère un QR code unique, en calculant :
-  - Un hash des données (via SHA-256)
-  - Un token signé (JWT) avec une clé secrète et une durée d’expiration
-- **Validation du QR Code**  
-  Une fonction \( g: Q \to \{ \text{valide}, \text{invalide} \} \) qui, en vérifiant la signature du token, détermine la validité du QR code.
-
----
-
-### 4.2. Cas d'Utilisation
-
-#### Scénario 1 : Génération d'un QR Code
-- **Acteur :** Fournisseur (ex. chauffeur)
-- **Préconditions :**
-  - La course est créée et enregistrée.
-  - L’utilisateur est authentifié (token JWT valide obtenu via `/api/reserve`).
-- **Flux Principal :**
-  1. L’utilisateur envoie une requête `POST /api/qr/generate` avec les données de la course, le secret et la durée d’expiration.
-  2. Le système attribue un UUID à la course, calcule un hash, signe ce hash et génère le QR code correspondant.
-  3. Le QR code (image PNG) est renvoyé au client.
-- **Postconditions :**
-  - Le QR code ainsi que les informations associées (dans `QRData` et `QRHash`) sont enregistrés dans la base.
-
-#### Scénario 2 : Scan et Validation d'un QR Code
-- **Acteur :** Fournisseur (ex. chauffeur ou agent de vérification)
-- **Préconditions :**
-  - Le QR code a été généré et est en possession de l’utilisateur.
-  - L’utilisateur est authentifié (token JWT valide).
-- **Flux Principal :**
-  1. L’utilisateur scanne le QR code et envoie une requête `POST /api/qr/scan` avec :
-     - Le token JWT issu du QR code (`qrCodeData`)
-     - Le même secret utilisé pour la signature
-     - Un objet `History` contenant des informations supplémentaires
-  2. Le système vérifie la signature du token.
-  3. En cas de succès, il récupère les données associées (via `QRHash` et `QRData`) et met à jour l’historique.
-  4. Le système renvoie l’objet `QRData` correspondant (ou `null` s'il n'est pas trouvé).
-- **Flux Alternatif :**
-  - Si la signature est invalide ou le QR code n’est pas trouvé, une erreur (HTTP 401 ou 404) est renvoyée.
-- **Postconditions :**
-  - L’opération de scan est enregistrée dans la base (via `History`).
-
----
-
-## 5. Structure du Code et Diagramme de Classes
-
-### 5.1. Principales Classes
-- **QRData**  
-  Contient les informations de la course (client, chauffeur, course, lieu, heure, date, ville, pays, fournisseur).
-- **QRHash**  
-  Enregistre le hash signé associé à une instance de `QRData` et la référence à son identifiant.
-- **History**  
-  Stocke l’historique des scans avec les informations suivantes :
-  - `id` (UUID)
-  - `client_id` (Long)
-  - `driver_id` (Long)
-  - `trip_id` (Long)
-  - `location` (String)
-  - `supplier` (String)
-  - `hour` (String)
-  - `date` (String)
-  - `city` (String)
-  - `country` (String)
-
-### 5.2. Services et Contrôleurs
-- **QRCodeController**  
-  Gère les endpoints `/api/qr/generate` et `/api/qr/scan`.
-- **ScanService**  
-  Contient la logique métier de validation et de traitement des scans.
-- **JwtUtil**  
-  (Optionnel) Gère la signature et la vérification des tokens JWT.
-
-### 5.3. Diagramme de Classes (UML Simplifié)
+### 3.3 Diagramme de Classes (UML Simplifié)
 ```
 +----------------+       +----------------+       +----------------+
 |    QRData      |       |    QRHash      |       |    History     |
@@ -371,3 +180,135 @@ CREATE TABLE IF NOT EXISTS history (
             |  (Logique de scan) |
             +--------------------+
 ```
+
+---
+
+## 4. Spécifications Non Fonctionnelles
+
+### 4.1 Sécurité
+- **Authentification** : Obligation de transmettre un token JWT pour accéder aux endpoints de génération et de scan.
+- **Intégrité des données** : Utilisation de hash SHA-256 et de signature JWT pour éviter toute falsification des informations.
+- **Expiration** : Les tokens intègrent une durée de validité configurable (`expirationMillis`) pour limiter les risques liés aux QR codes expirés.
+
+### 4.2 Performance et Scalabilité
+- **Performance** : Optimisation de la génération et de la vérification des QR codes pour assurer une réponse rapide même en cas de trafic important.
+- **Scalabilité** : Utilisation de Cassandra comme base NoSQL pour supporter une montée en charge horizontale et garantir la haute disponibilité.
+
+### 4.3 Fiabilité et Traçabilité
+- **Journalisation** : Enregistrement des actions de scan dans la table `History` pour un suivi détaillé.
+- **Tolérance aux pannes** : Déploiement en cluster (possibilité d’utilisation de Docker et orchestration avec Kubernetes par exemple) pour assurer la continuité de service.
+
+---
+
+## 5. Plan de Déploiement
+
+### 5.1 Prérequis Techniques
+- **Java** : Version 11 minimum (idéalement Java 17 ou 23)
+- **Gestionnaire de Build** : Maven ou Gradle
+- **Base de données** : Cassandra (localement, en Docker ou sur un cluster)
+- **Conteneurisation (optionnelle)** : Docker
+
+### 5.2 Configuration de l’Environnement
+
+#### Cassandra
+1. **Installation**  
+   - Installation locale ou via Docker :
+     ```bash
+     docker run --name cassandra -d -p 9042:9042 cassandra:latest
+     ```
+2. **Création du Keyspace et Tables**  
+   - Se connecter via `cqlsh` et exécuter le script de création du keyspace et des tables (voir section 3.2).
+
+#### Application
+1. **Fichier de configuration**  
+   - Modifier le fichier `src/main/resources/application.properties` ou `application.yml` :
+     ```properties
+     spring.application.name=QRAPI
+     spring.data.cassandra.contact-points=127.0.0.1
+     spring.data.cassandra.port=9042
+     spring.data.cassandra.keyspace-name=transportapp
+     spring.data.cassandra.local-datacenter=datacenter1
+     spring.data.cassandra.schema-action=create-if-not-exists
+     server.port=8080
+     ```
+2. **Dépendances Maven**  
+   - Vérifier que le `pom.xml` inclut les dépendances nécessaires (Spring Boot, Spring Data Cassandra, Spring Security, JJWT, ZXing, etc.).
+
+### 5.3 Construction et Lancement
+1. **Compilation et Packaging**
+   - Avec Maven :
+     ```bash
+     mvn clean install
+     ```
+2. **Démarrage de l’application**
+   - Exécuter le jar généré :
+     ```bash
+     java -jar target/QRAPI-0.0.1-SNAPSHOT.jar
+     ```
+   - L’application sera accessible sur `http://localhost:8080`.
+
+3. **Conteneurisation (optionnelle)**
+   - Création d’un Dockerfile pour containeriser l’application et éventuellement la base Cassandra.
+
+---
+
+## 6. Cas d’Utilisation et Scénarios
+
+### 6.1 Cas d’Utilisation : Génération d’un QR Code
+- **Acteur** : Fournisseur (ex. chauffeur)
+- **Préconditions** :
+  - L’utilisateur est authentifié (token JWT obtenu via `/api/reserve`).
+  - Les données de la course sont préalablement enregistrées ou validées.
+- **Flux Principal** :
+  1. Envoi d’une requête `POST /api/qr/generate` avec les paramètres requis (`secret`, `expirationMillis`) et un objet `QRData`.
+  2. Attribution d’un UUID, création du hash, signature du token JWT, et génération du QR code.
+  3. Renvoi d’une image PNG contenant le QR code généré.
+- **Postconditions** :
+  - Enregistrement des informations dans les tables `QRData` et `QRHash`.
+
+### 6.2 Cas d’Utilisation : Scan et Validation d’un QR Code
+- **Acteur** : Fournisseur (ex. chauffeur, agent de vérification)
+- **Préconditions** :
+  - Le QR code a été généré et est en possession de l’utilisateur.
+  - L’utilisateur possède un token JWT valide.
+- **Flux Principal** :
+  1. Scan du QR code et envoi d’une requête `POST /api/qr/scan` avec `qrCodeData` et le `secret`.
+  2. Vérification de la signature du token.
+  3. Récupération des informations associées à partir de `QRHash` et `QRData`.
+  4. Enregistrement d’un objet `History` avec les données complémentaires.
+  5. Renvoi des informations de course (objet `QRData`) en réponse.
+- **Flux Alternatif** :
+  - Signature invalide : renvoi d’un HTTP 401 avec message d’erreur.
+  - Erreur de traitement : renvoi d’un HTTP 400 avec message d’erreur.
+- **Postconditions** :
+  - Mise à jour de l’historique dans la table `History`.
+
+---
+
+## 7. Suivi, Tests et Maintenance
+
+### 7.1 Stratégie de Tests
+- **Tests Unitaires** : Couvrir la logique de génération de QR codes, la signature et la vérification des tokens.
+- **Tests d’Intégration** : Valider l’interaction entre les services (ScanService, contrôleur, et accès à Cassandra).
+- **Tests de Sécurité** : Vérifier que les endpoints protègent correctement l’accès via le token JWT et renvoient les statuts HTTP appropriés en cas d’erreur.
+- **Tests de Performance** : Assurer la réactivité de l’API sous une charge simulée importante.
+
+### 7.2 Suivi et Maintenance
+- **Journalisation** : Mettre en place une stratégie de log pour suivre les accès et les erreurs.
+- **Monitoring** : Utilisation d’outils (ex. Prometheus, Grafana) pour surveiller la santé de l’API et des ressources Cassandra.
+- **Mises à jour** : Prévoir un plan de mise à jour régulier pour les dépendances (Spring Boot, sécurité, bibliothèques tierces).
+
+---
+
+## 8. Livrables et Documentation
+- **Code Source** : Organisation du code en packages (contrôleurs, services, modèles, repositories).
+- **Documentation Technique** : Documentation des endpoints, des schémas de données et des procédures de déploiement.
+- **Rapport de Travail** : Le dossier "RAPPORT" contiendra l’analyse détaillée du développement, les choix techniques et les tests réalisés.
+- **Diagrammes UML** : Diagramme de classes et diagrammes de séquence pour illustrer les interactions principales.
+
+---
+
+## 9. Conclusion
+Ce cahier des charges définit l’ensemble des aspects de conception, de déploiement et d’utilisation de la QRAPI. L’API se veut sécurisée, performante et traçable, répondant aux besoins d’un système d’authentification par QR code dans un contexte de gestion de courses. La mise en œuvre s’appuie sur des technologies éprouvées (Spring Boot, Cassandra, JWT, ZXing) et suit des standards de développement et de sécurité adaptés aux environnements de production.
+
+---
