@@ -12,3 +12,4 @@ com\example\QRAPI\QrapiApplication.class
 com\example\QRAPI\controller\AuthController.class
 com\example\QRAPI\security\JwtUtil.class
 com\example\QRAPI\model\QRHash.class
+com\example\QRAPI\security\SecurityConfig$1.class
